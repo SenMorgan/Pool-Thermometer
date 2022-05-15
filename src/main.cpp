@@ -1,9 +1,18 @@
 #include <Arduino.h>
+#define BUILTIN_LED 2
+
+ADC_MODE(ADC_VCC);
 
 void setup() {
-  // put your setup code here, to run once:
+  Serial.begin(115200);
+  pinMode(BUILTIN_LED, OUTPUT);
 }
 
 void loop() {
-  // put your main code here, to run repeatedly:
+  Serial.println(ESP.getVcc());
+
+  digitalWrite(BUILTIN_LED, LOW);
+  delay(200);
+  digitalWrite(BUILTIN_LED, HIGH); 
+  delay(200); 
 }
