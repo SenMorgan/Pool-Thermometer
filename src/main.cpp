@@ -63,8 +63,12 @@ void setup()
         static char buff[20];
         sprintf(buff, "%d", read_filter_vcc());
         mqttClient.publish(DEFAULT_TOPIC "vcc", buff);
-        sprintf(buff, "%0.2f", sensors.getTempCByIndex(0));
-        mqttClient.publish(DEFAULT_TOPIC "temp", buff);
+        float int_temp = sensors.getTempCByIndex(0);
+        if (int_temp > -55 && int_temp < 125)
+        {
+            sprintf(buff, "%0.2f", int_temp);
+            mqttClient.publish(DEFAULT_TOPIC "temp", buff);
+        }
     }
     else
         ESP.deepSleep(SLEEP_STEP_MS * 1000);
