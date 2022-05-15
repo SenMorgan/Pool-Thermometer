@@ -1,4 +1,8 @@
 #include <Arduino.h>
+#include "credentials.h"
+const char ssid[] = WIFI_SSID;
+const char pass[] = WIFI_PASSWD;
+
 #define BUILTIN_LED 2
 
 ADC_MODE(ADC_VCC);
