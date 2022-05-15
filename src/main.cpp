@@ -1,6 +1,10 @@
 #include <Arduino.h>
 #include <ESP8266WiFi.h>
 #include <PubSubClient.h>
+#include <OneWire.h>
+#include <OneWire.h>
+#include <DallasTemperature.h>
+
 
 #include "credentials.h"
 #include "def.h"
@@ -10,6 +14,9 @@ const char pass[] = WIFI_PASSWD;
 
 WiFiClient   espClient;
 PubSubClient client(espClient);
+
+OneWire oneWire(ONE_WIRE_BUS);
+DallasTemperature sensors(&oneWire);
 
 ADC_MODE(ADC_VCC);
 
