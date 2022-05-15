@@ -28,7 +28,7 @@
 // Input voltage offset measured on the battery (with diode and charging circuit)
 #define INPUT_VCC_EXT_OFFSET_MV 917
 // Resulted offset in millivolts
-#define VCC_OFFSET_MV           INPUT_VCC_INTERNAL_OFFSET_MV + INPUT_VCC_EXT_DIODE_OFFSET_MV
+#define VCC_OFFSET_MV           INPUT_VCC_INT_OFFSET_MV + INPUT_VCC_EXT_OFFSET_MV
 
 // IO pins
 #define STATUS_LED   2
