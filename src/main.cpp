@@ -38,10 +38,10 @@ void setup()
     WiFi.mode(WIFI_STA);
     WiFi.begin(ssid, pass);
     WiFi.hostname(HOSTNAME);
-    // Serial not working with DS18B20 connected
+    // Onewire not working on Rx pin #3 when serial is enabled
     // Serial.begin(115200);
     sensors.begin();
-    sensors.setResolution(11);
+    sensors.setResolution(10);
     sensors.requestTemperatures();
 
     uint8_t cnt = 0;
@@ -63,7 +63,7 @@ void setup()
         static char buff[20];
         sprintf(buff, "%d", read_filter_vcc());
         mqttClient.publish(DEFAULT_TOPIC "vcc", buff);
-        sprintf(buff, "%f", sensors.getTempCByIndex(0));
+        sprintf(buff, "%0.2f", sensors.getTempCByIndex(0));
         mqttClient.publish(DEFAULT_TOPIC "temp", buff);
     }
     else
