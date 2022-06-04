@@ -2,8 +2,8 @@
 #include <ESP8266WiFi.h>
 #include <PubSubClient.h>
 #include <OneWire.h>
-#include <OneWire.h>
 #include <DallasTemperature.h>
+#include "Adafruit_BME680.h"
 
 #include "credentials.h"
 #include "def.h"
