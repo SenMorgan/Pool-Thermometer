@@ -29,9 +29,14 @@
 #define INPUT_VCC_EXT_OFFSET_MV 917
 // Resulted offset in millivolts
 #define VCC_OFFSET_MV           INPUT_VCC_INT_OFFSET_MV + INPUT_VCC_EXT_OFFSET_MV
+/** This variable saves the pressure at the sea level in hectopascal (is equivalent to milibar).
+ * This variable is used to estimate the altitude for a given pressure
+ * by comparing it with the sea level pressure. This example uses the default value,
+ * but for accurate results, replace the value with the current sea level pressure at your location. */
+#define SEALEVELPRESSURE_HPA (1015.2)
 
 // IO pins
-#define STATUS_LED   2
+// #define STATUS_LED   2 // Can't use if I2C is enabled
 #define ONE_WIRE_BUS 3
 
 #endif // _DEF_H_
