@@ -4,7 +4,7 @@
 #include <OneWire.h>
 #include <DallasTemperature.h>
 #include <Wire.h>
-#include "Adafruit_BME680.h"
+#include <Adafruit_BME280.h>
 
 #include "credentials.h"
 #include "def.h"
@@ -18,19 +18,14 @@ PubSubClient mqttClient(espClient);
 OneWire oneWire(ONE_WIRE_BUS);
 DallasTemperature sensors(&oneWire);
 
-Adafruit_BME680 bme680;
+Adafruit_BME280 bme280;
 
 ADC_MODE(ADC_VCC);
 
 int vcc_mv;
-float ds18b20_temp_sen_1;
-float bme680_temp;
-uint32_t bme680_press;
-float bme680_hum;
-uint32_t bme680_gas;
-float bme680_alt;
-uint32_t bme680_end_time;
-uint8_t bme680_ready;
+float upper_water_sensor_temp, bottom_water_sensor_temp, inside_sensor_temp;
+float bme280_temp, bme280_hum, bme280_pres;
+uint8_t bme280_ready;
 
 int read_filter_vcc()
 {
@@ -45,30 +40,27 @@ int read_filter_vcc()
 
 void setup()
 {
-    // Serial.begin(115200);
-
-    // I2C stuff
-    Wire.begin(0, 2);
-
-    if (bme680.begin())
-    {
-        // Set up oversampling and filter initialization
-        bme680.setTemperatureOversampling(BME680_OS_8X);
-        bme680.setHumidityOversampling(BME680_OS_2X);
-        bme680.setPressureOversampling(BME680_OS_4X);
-        bme680.setIIRFilterSize(BME680_FILTER_SIZE_3);
-        bme680.setGasHeater(320, 150); // 320*C for 150 ms
-
-        // Tell BME680 to begin measurement.
-        bme680_end_time = bme680.beginReading();
-    }
 
     WiFi.mode(WIFI_STA);
     WiFi.begin(ssid, pass);
     WiFi.hostname(HOSTNAME);
+
+    // I2C stuff
+    Wire.begin(0, 2);
+    bme280_ready = bme280.begin(BME280_ADDRESS_ALTERNATE);
+    bme280.setSampling(
+        bme280.MODE_FORCED,
+        bme280.SAMPLING_X1,
+        bme280.SAMPLING_X1,
+        bme280.SAMPLING_X1,
+        bme280.FILTER_OFF,
+        bme280.STANDBY_MS_1000);
+
     // Onewire not working on Rx pin #3 when serial is enabled
     sensors.begin();
-    sensors.setResolution(10);
+    sensors.setResolution(upper_water_thermometer, 12);
+    sensors.setResolution(bottom_water_thermometer, 12);
+    sensors.setResolution(inside_thermometer, 12);
     sensors.requestTemperatures();
 
     uint8_t cnt = 0;
@@ -76,7 +68,7 @@ void setup()
     {
         delay(100);
         cnt++;
-        if (cnt > 10)
+        if (cnt > 50)
             ESP.deepSleep(SLEEP_STEP_MS * 1000);
     }
 
@@ -85,42 +77,66 @@ void setup()
     if (mqttClient.connect(HOSTNAME, MQTT_LOGIN, MQTT_PASSWORD,
                            MQTT_WILL_TOPIC, MQTT_QOS, MQTT_RETAIN, MQTT_WILL_MESSAGE))
     {
-        vcc_mv = read_filter_vcc();
-        ds18b20_temp_sen_1 = sensors.getTempCByIndex(0);
+        vcc_mv = read_filter_vcc();                                            // mV
+        upper_water_sensor_temp = sensors.getTempC(upper_water_thermometer);   // ˚C
+        bottom_water_sensor_temp = sensors.getTempC(bottom_water_thermometer); // ˚C
+        inside_sensor_temp = sensors.getTempC(inside_thermometer);             // ˚C
 
-        if (bme680_end_time > 0 && millis() >= bme680_end_time)
+        // Read data only if BME280 is connected
+        if (bme280_ready)
         {
-            if (bme680.endReading())
-            {
-                bme680_temp = bme680.temperature;                       // ˚C
-                bme680_press = bme680.pressure / 100.0;                 // hPa
-                bme680_hum = bme680.humidity;                           // %
-                bme680_gas = bme680.gas_resistance / 1000.0;            // KOhms
-                bme680_alt = bme680.readAltitude(SEALEVELPRESSURE_HPA); // m
-                bme680_ready = true;
-            }
+            bme280_temp = bme280.readTemperature();       // ˚C
+            bme280_pres = bme280.readPressure() / 100.0F; // hPa
+            bme280_hum = bme280.readHumidity();           // %
+            bme280.setSampling(                           // use recommended settings for low-power weather monitoring
+                bme280.MODE_SLEEP,                        // sleep after each reading
+                bme280.SAMPLING_X1,                       // temperature 1x oversample
+                bme280.SAMPLING_X1,                       // pressure 1x oversample
+                bme280.SAMPLING_X1,                       // humidity 1x oversample
+                bme280.FILTER_OFF,                        // no IIR filtering
+                bme280.STANDBY_MS_1000                    // 1 sec standby duration
+            );
         }
 
         static char buff[20];
-        sprintf(buff, "%d", vcc_mv);
-        mqttClient.publish(DEFAULT_TOPIC "vcc", buff);
-        if (ds18b20_temp_sen_1 > -55 && ds18b20_temp_sen_1 < 125)
+        if (vcc_mv > 0)
         {
-            sprintf(buff, "%0.2f", ds18b20_temp_sen_1);
-            mqttClient.publish(DEFAULT_TOPIC "temp", buff);
+            sprintf(buff, "%d", vcc_mv);
+            mqttClient.publish(DEFAULT_TOPIC "vcc", buff);
         }
-        if (bme680_ready)
+        if (upper_water_sensor_temp != DEVICE_DISCONNECTED_C)
         {
-            sprintf(buff, "%f", bme680_temp);
-            mqttClient.publish(DEFAULT_TOPIC "bme680/temp", buff);
-            sprintf(buff, "%d", bme680_press);
-            mqttClient.publish(DEFAULT_TOPIC "bme680/press", buff);
-            sprintf(buff, "%f", bme680_hum);
-            mqttClient.publish(DEFAULT_TOPIC "bme680/hum", buff);
-            sprintf(buff, "%d", bme680_gas);
-            mqttClient.publish(DEFAULT_TOPIC "bme680/gas", buff);
-            sprintf(buff, "%f", bme680_alt);
-            mqttClient.publish(DEFAULT_TOPIC "bme680/alt", buff);
+            sprintf(buff, "%0.2f", upper_water_sensor_temp);
+            mqttClient.publish(DEFAULT_TOPIC "ds18b20/upper-water-temp", buff);
+        }
+        if (bottom_water_sensor_temp != DEVICE_DISCONNECTED_C)
+        {
+            sprintf(buff, "%0.2f", bottom_water_sensor_temp);
+            mqttClient.publish(DEFAULT_TOPIC "ds18b20/bottom-water-temp", buff);
+        }
+        if (inside_sensor_temp != DEVICE_DISCONNECTED_C)
+        {
+            sprintf(buff, "%0.2f", inside_sensor_temp);
+            mqttClient.publish(DEFAULT_TOPIC "ds18b20/inside-temp", buff);
+        }
+        // Publish data only if BME280 is connected
+        if (bme280_ready)
+        {
+            if (bme280_temp >= -40.0 && bme280_temp <= 80.0)
+            {
+                sprintf(buff, "%0.2f", bme280_temp);
+                mqttClient.publish(DEFAULT_TOPIC "bme280/temp", buff);
+            }
+            if (bme280_hum >= 0.0 && bme280_hum <= 100.0)
+            {
+                sprintf(buff, "%0.2f", bme280_hum);
+                mqttClient.publish(DEFAULT_TOPIC "bme280/hum", buff);
+            }
+            if (bme280_pres >= 300.0 && bme280_pres <= 1100.0)
+            {
+                sprintf(buff, "%0.2f", bme280_pres);
+                mqttClient.publish(DEFAULT_TOPIC "bme280/press", buff);
+            }
         }
     }
     else

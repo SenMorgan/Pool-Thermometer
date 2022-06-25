@@ -33,10 +33,14 @@
  * This variable is used to estimate the altitude for a given pressure
  * by comparing it with the sea level pressure. This example uses the default value,
  * but for accurate results, replace the value with the current sea level pressure at your location. */
-#define SEALEVELPRESSURE_HPA (1015.2)
+#define SEALEVELPRESSURE_HPA    (1015.2)
 
 // IO pins
 // #define STATUS_LED   2 // Can't use if I2C is enabled
 #define ONE_WIRE_BUS 3
+
+DeviceAddress upper_water_thermometer = {0x28, 0xAA, 0x1D, 0x45, 0x92, 0x01, 0x02, 0x63};
+DeviceAddress bottom_water_thermometer = {0x28, 0x51, 0x57, 0x45, 0x92, 0x0F, 0x02, 0x61};
+DeviceAddress inside_thermometer = {0x28, 0xFF, 0x30, 0x5D, 0x6D, 0x18, 0x01, 0xF8};
 
 #endif // _DEF_H_
