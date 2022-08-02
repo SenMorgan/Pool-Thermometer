@@ -17,9 +17,12 @@
 #define MQTT_RETAIN               0
 #define MQTT_WILL_MESSAGE         DEFAULT_TOPIC "offline"
 #define MQTT_SUBSCRIBE_TOPIC      DEFAULT_TOPIC "#"
-#define MQTT_PUBLISH_TOPIC        DEFAULT_TOPIC "state"
+#define MQTT_PUBLISH_TOPIC        DEFAULT_TOPIC "state/light"
 #define MQTT_AVAILABILITY_TOPIC   DEFAULT_TOPIC "availability"
 #define MQTT_AVAILABILITY_MESSAGE "online"
+#define MQTT_CMD_TOPIC            DEFAULT_TOPIC "set/light"
+#define MQTT_CMD_ON               "1"
+#define MQTT_CMD_OFF              "0"
 
 // The time the board will be in deep sleep mode
 #define SLEEP_STEP_MS           60000
@@ -37,10 +40,10 @@
 
 // IO pins
 // #define STATUS_LED   2 // Can't use if I2C is enabled
-#define ONE_WIRE_BUS 3
+#define ONE_WIRE_BUS 1
+#define LIGHT_PIN    3
 
 DeviceAddress upper_water_thermometer = {0x28, 0x8A, 0xBC, 0x48, 0xF6, 0xFC, 0x3C, 0x3C};
 DeviceAddress bottom_water_thermometer = {0x28, 0xB1, 0x44, 0x48, 0xF6, 0xA6, 0x3C, 0x21};
-DeviceAddress inside_thermometer = {0x28, 0xFF, 0x30, 0x5D, 0x6D, 0x18, 0x01, 0xF8};
 
 #endif // _DEF_H_c

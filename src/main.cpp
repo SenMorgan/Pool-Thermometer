@@ -22,10 +22,11 @@ Adafruit_BME280 bme280;
 
 ADC_MODE(ADC_VCC);
 
-int vcc_mv;
-float upper_water_sensor_temp, bottom_water_sensor_temp, inside_sensor_temp;
-float bme280_temp, bme280_hum, bme280_pres;
-uint8_t bme280_ready;
+static int vcc_mv;
+static float upper_water_sensor_temp, bottom_water_sensor_temp;
+static float bme280_temp, bme280_hum, bme280_pres;
+static uint8_t bme280_ready, sleep_enabled = 1;
+static uint32_t time_stamp;
 
 int read_filter_vcc()
 {
@@ -38,8 +39,37 @@ int read_filter_vcc()
     return vcc_arr / 20;
 }
 
+/**
+ * @brief MQTT Callback
+ */
+void callback(String topic, byte *payload, uint16_t length)
+{
+    String msgString = "";
+    for (uint16_t i = 0; i < length; i++)
+        msgString += (char)payload[i];
+
+    // Commands topic
+    if (topic == MQTT_CMD_TOPIC)
+    {
+        if (msgString == MQTT_CMD_ON)
+        {
+            mqttClient.publish(MQTT_PUBLISH_TOPIC, MQTT_CMD_ON, true);
+            digitalWrite(LIGHT_PIN, HIGH);
+            sleep_enabled = 0;
+        }
+        else if (msgString == MQTT_CMD_OFF)
+        {
+            mqttClient.publish(MQTT_PUBLISH_TOPIC, MQTT_CMD_OFF, true);
+            digitalWrite(LIGHT_PIN, LOW);
+            ESP.deepSleep(SLEEP_STEP_MS * 1000);
+        }
+    }
+}
+
 void setup()
 {
+    pinMode(LIGHT_PIN, OUTPUT);
+    digitalWrite(LIGHT_PIN, LOW);
 
     WiFi.mode(WIFI_STA);
     WiFi.begin(ssid, pass);
@@ -60,7 +90,6 @@ void setup()
     sensors.begin();
     sensors.setResolution(upper_water_thermometer, 12);
     sensors.setResolution(bottom_water_thermometer, 12);
-    sensors.setResolution(inside_thermometer, 12);
     sensors.requestTemperatures();
 
     uint8_t cnt = 0;
@@ -73,14 +102,15 @@ void setup()
     }
 
     mqttClient.setServer(MQTT_SERVER, MQTT_SERVER_PORT);
+    mqttClient.setCallback(callback);
 
     if (mqttClient.connect(HOSTNAME, MQTT_LOGIN, MQTT_PASSWORD,
                            MQTT_WILL_TOPIC, MQTT_QOS, MQTT_RETAIN, MQTT_WILL_MESSAGE))
     {
+        mqttClient.subscribe(MQTT_SUBSCRIBE_TOPIC);
         vcc_mv = read_filter_vcc();                                            // mV
         upper_water_sensor_temp = sensors.getTempC(upper_water_thermometer);   // ˚C
         bottom_water_sensor_temp = sensors.getTempC(bottom_water_thermometer); // ˚C
-        inside_sensor_temp = sensors.getTempC(inside_thermometer);             // ˚C
 
         // Read data only if BME280 is connected
         if (bme280_ready)
@@ -114,11 +144,7 @@ void setup()
             sprintf(buff, "%0.2f", bottom_water_sensor_temp);
             mqttClient.publish(DEFAULT_TOPIC "ds18b20/bottom-water-temp", buff);
         }
-        if (inside_sensor_temp != DEVICE_DISCONNECTED_C)
-        {
-            sprintf(buff, "%0.2f", inside_sensor_temp);
-            mqttClient.publish(DEFAULT_TOPIC "ds18b20/inside-temp", buff);
-        }
+
         // Publish data only if BME280 is connected
         if (bme280_ready)
         {
@@ -142,11 +168,16 @@ void setup()
     else
         ESP.deepSleep(SLEEP_STEP_MS * 1000);
 
-    delay(1000);
-
-    ESP.deepSleep(SLEEP_STEP_MS * 1000);
+    time_stamp = millis();
 }
 
 void loop()
 {
+    mqttClient.loop();
+
+    if (sleep_enabled && millis() - time_stamp > 2000)
+    {
+        ESP.deepSleep(SLEEP_STEP_MS * 1000);
+    }
+    yield();
 }
