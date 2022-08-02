@@ -33,7 +33,7 @@ int read_filter_vcc()
     int32_t vcc_arr = 0;
     for (uint8_t i = 0; i < 20; i++)
     {
-        vcc_arr += ESP.getVcc() + VCC_OFFSET_MV;
+        vcc_arr += ESP.getVcc();
         delay(2);
     }
     return vcc_arr / 20;
@@ -61,6 +61,7 @@ void callback(String topic, byte *payload, uint16_t length)
         {
             mqttClient.publish(MQTT_PUBLISH_TOPIC, MQTT_CMD_OFF, true);
             digitalWrite(LIGHT_PIN, LOW);
+            delay(1000);
             ESP.deepSleep(SLEEP_STEP_MS * 1000);
         }
     }
