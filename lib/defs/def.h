@@ -37,9 +37,9 @@
 // Some delay to process MQTT messages before going to sleep
 #define DELAY_AFTER_PUBLISH_MS    1000
 // VCC offset coefficient
-#define VCC_CORR_COEFFICIENT      0.989
+#define VCC_CORR_COEFFICIENT      0.958
 // Resulted offset in millivolts
-#define VCC_CORR_OFFSET_MV        -0.0634
+#define VCC_CORR_OFFSET_MV        32.4
 // Light voltage cutoff
 #define LIGHT_CUTOFF_MV           3200
 
