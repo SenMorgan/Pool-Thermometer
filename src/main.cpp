@@ -58,7 +58,7 @@ void callback(String topic, byte *payload, uint16_t length)
     // Sleep mode control topic
     else if (topic == MQTT_CMD_TOPIC_SLEEP)
     {
-        if (msgString == MQTT_CMD_ON)
+        if (msgString == MQTT_CMD_ON && !sleep_enabled)
         {
             // Go to sleep only if light is not enabled
             if (!light_enabled)
@@ -73,7 +73,7 @@ void callback(String topic, byte *payload, uint16_t length)
                 mqttClient.publish(MQTT_STATE_TOPIC_SLEEP, MQTT_CMD_OFF, true);
             }
         }
-        else if (msgString == MQTT_CMD_OFF)
+        else if (msgString == MQTT_CMD_OFF && sleep_enabled)
         {
             sleep_enabled = 0;
             mqttClient.publish(MQTT_STATE_TOPIC_SLEEP, MQTT_CMD_OFF, true);
