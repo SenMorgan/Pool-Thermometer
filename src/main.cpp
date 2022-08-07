@@ -26,7 +26,7 @@ ADC_MODE(ADC_VCC);
 static int vcc_mv;
 static float upper_water_sensor_temp, bottom_water_sensor_temp;
 static float bme280_temp, bme280_hum, bme280_pres;
-static uint8_t bme280_ready, sleep_enabled = 1;
+static uint8_t bme280_ready, sleep_enabled = 1, light_enabled;
 static uint32_t time_stamp_sleep, time_stamp_publish, disconnected_time_stamp;
 
 /**
@@ -41,7 +41,7 @@ void callback(String topic, byte *payload, uint16_t length)
     // Light control topic
     if (topic == MQTT_CMD_TOPIC_LIGHT)
     {
-        if (msgString == MQTT_CMD_ON)
+        if (msgString == MQTT_CMD_ON && !light_enabled)
         {
             mqttClient.publish(MQTT_STATE_TOPIC_LIGHT, MQTT_CMD_ON, true);
             digitalWrite(LIGHT_PIN, HIGH);
@@ -49,7 +49,7 @@ void callback(String topic, byte *payload, uint16_t length)
             mqttClient.publish(MQTT_STATE_TOPIC_SLEEP, MQTT_CMD_OFF, true);
             sleep_enabled = 0;
         }
-        else if (msgString == MQTT_CMD_OFF)
+        else if (msgString == MQTT_CMD_OFF && light_enabled)
         {
             mqttClient.publish(MQTT_STATE_TOPIC_LIGHT, MQTT_CMD_OFF, true);
             digitalWrite(LIGHT_PIN, LOW);
@@ -60,9 +60,18 @@ void callback(String topic, byte *payload, uint16_t length)
     {
         if (msgString == MQTT_CMD_ON)
         {
-            sleep_enabled = 1;
-            mqttClient.publish(MQTT_STATE_TOPIC_SLEEP, MQTT_CMD_ON, true);
-            delay(DELAY_AFTER_PUBLISH_MS);
+            // Go to sleep only if light is not enabled
+            if (!light_enabled)
+            {
+                sleep_enabled = 1;
+                mqttClient.publish(MQTT_STATE_TOPIC_SLEEP, MQTT_CMD_ON, true);
+                delay(DELAY_AFTER_PUBLISH_MS);
+            }
+            // Send back info that sleep mode state was not changed
+            else
+            {
+                mqttClient.publish(MQTT_STATE_TOPIC_SLEEP, MQTT_CMD_OFF, true);
+            }
         }
         else if (msgString == MQTT_CMD_OFF)
         {
