@@ -47,12 +47,14 @@ void callback(String topic, byte *payload, uint16_t length)
             digitalWrite(LIGHT_PIN, HIGH);
             // Disable sleep mode if we want to control the light
             mqttClient.publish(MQTT_STATE_TOPIC_SLEEP, MQTT_CMD_OFF, true);
+            light_enabled = 1;
             sleep_enabled = 0;
         }
         else if (msgString == MQTT_CMD_OFF && light_enabled)
         {
             mqttClient.publish(MQTT_STATE_TOPIC_LIGHT, MQTT_CMD_OFF, true);
             digitalWrite(LIGHT_PIN, LOW);
+            light_enabled = 0;
         }
     }
     // Sleep mode control topic
