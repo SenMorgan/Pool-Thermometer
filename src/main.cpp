@@ -30,22 +30,6 @@ static uint8_t bme280_ready, sleep_enabled = 1;
 static uint32_t time_stamp_sleep, time_stamp_publish, disconnected_time_stamp;
 
 /**
- * @brief Read internal VCC voltage with oversampling
- *
- * @return Voltage in mV
- */
-int read_filter_vcc()
-{
-    int32_t vcc_arr = 0;
-    for (uint8_t i = 0; i < 20; i++)
-    {
-        vcc_arr += ESP.getVcc() * VCC_CORR_COEFFICIENT + VCC_CORR_OFFSET_MV;
-        delay(2);
-    }
-    return vcc_arr / 20;
-}
-
-/**
  * @brief MQTT Callback
  */
 void callback(String topic, byte *payload, uint16_t length)
@@ -123,6 +107,22 @@ void asleep_sensors()
         bme280.FILTER_OFF,     // no IIR filtering
         bme280.STANDBY_MS_1000 // 1 sec standby duration
     );
+}
+
+/**
+ * @brief Read internal VCC voltage with oversampling
+ *
+ * @return Voltage in mV
+ */
+int read_filter_vcc()
+{
+    int32_t vcc_arr = 0;
+    for (uint8_t i = 0; i < 20; i++)
+    {
+        vcc_arr += ESP.getVcc() * VCC_CORR_COEFFICIENT + VCC_CORR_OFFSET_MV;
+        delay(2);
+    }
+    return vcc_arr / 20;
 }
 
 /**
