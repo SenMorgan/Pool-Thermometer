@@ -43,17 +43,13 @@ void callback(String topic, byte *payload, uint16_t length)
     {
         if (msgString == MQTT_CMD_ON && !light_enabled)
         {
-            mqttClient.publish(MQTT_STATE_TOPIC_LIGHT, MQTT_CMD_ON, true);
-            digitalWrite(LIGHT_PIN, HIGH);
+            light_enabled = 1;
             // Disable sleep mode if we want to control the light
             mqttClient.publish(MQTT_STATE_TOPIC_SLEEP, MQTT_CMD_OFF, true);
-            light_enabled = 1;
             sleep_enabled = 0;
         }
         else if (msgString == MQTT_CMD_OFF && light_enabled)
         {
-            mqttClient.publish(MQTT_STATE_TOPIC_LIGHT, MQTT_CMD_OFF, true);
-            digitalWrite(LIGHT_PIN, LOW);
             light_enabled = 0;
         }
     }
@@ -193,6 +189,48 @@ void read_send_sensors_data()
     }
 }
 
+void light_control(int vcc, int cutoff_voltage, uint8_t state)
+{
+    static uint8_t state_last;
+
+    // Turn ON/OFF light depending on VCC voltage
+    if (state != state_last)
+    {
+        state_last = state;
+        if (state)
+        {
+            if (vcc > cutoff_voltage)
+            {
+                digitalWrite(LIGHT_PIN, HIGH);
+                light_enabled = 1;
+                mqttClient.publish(MQTT_STATE_TOPIC_LIGHT, MQTT_CMD_ON, true);
+            }
+            else
+            {
+                light_enabled = 0;
+                mqttClient.publish(MQTT_STATE_TOPIC_LIGHT, MQTT_CMD_OFF, true);
+            }
+        }
+        else
+        {
+            light_enabled = 0;
+            digitalWrite(LIGHT_PIN, LOW);
+            mqttClient.publish(MQTT_STATE_TOPIC_LIGHT, MQTT_CMD_OFF, true);
+        }
+    }
+
+    // If VCC is below cutoff voltage, turn off light
+    if (light_enabled)
+    {
+        if (vcc < cutoff_voltage)
+        {
+            light_enabled = 0;
+            digitalWrite(LIGHT_PIN, LOW);
+            mqttClient.publish(MQTT_STATE_TOPIC_LIGHT, MQTT_CMD_OFF, true);
+        }
+    }
+}
+
 void setup()
 {
     pinMode(LIGHT_PIN, OUTPUT);
@@ -250,8 +288,8 @@ void setup()
 void loop()
 {
     ArduinoOTA.handle();
-
     uint8_t connected_to_broker = mqttClient.loop();
+    light_control(vcc_mv, LIGHT_CUTOFF_MV, light_enabled);
 
     // If sleep mode enabled, wait for retained messages from broker
     if (sleep_enabled)

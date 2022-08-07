@@ -40,11 +40,8 @@
 #define VCC_CORR_COEFFICIENT      0.989
 // Resulted offset in millivolts
 #define VCC_CORR_OFFSET_MV        -0.0634
-/** This variable saves the pressure at the sea level in hectopascal (is equivalent to milibar).
- * This variable is used to estimate the altitude for a given pressure
- * by comparing it with the sea level pressure. This example uses the default value,
- * but for accurate results, replace the value with the current sea level pressure at your location. */
-#define SEALEVELPRESSURE_HPA      (1015.2)
+// Light voltage cutoff
+#define LIGHT_CUTOFF_MV           3200
 
 // IO pins
 // #define STATUS_LED   2 // Can't use if I2C is enabled
