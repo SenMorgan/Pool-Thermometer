@@ -29,6 +29,9 @@ static float bme280_temp, bme280_hum, bme280_pres;
 static uint8_t bme280_ready, sleep_enabled = 1, light_enabled;
 static uint32_t time_stamp_sleep, time_stamp_publish, disconnected_time_stamp;
 
+// Force declaration of static functions
+void set_bme280_normal_mode();
+
 /**
  * @brief MQTT Callback
  */
@@ -47,6 +50,8 @@ void callback(String topic, byte *payload, uint16_t length)
             // Disable sleep mode if we want to control the light
             mqttClient.publish(MQTT_STATE_TOPIC_SLEEP, MQTT_CMD_OFF, true);
             sleep_enabled = 0;
+            // Switch BME280 to normal mode, because now we don't care about consumption
+            set_bme280_normal_mode();
         }
         else if (msgString == MQTT_CMD_OFF && light_enabled)
         {
@@ -98,6 +103,21 @@ void init_sensors()
     sensors.begin();
     sensors.setResolution(upper_water_thermometer, 12);
     sensors.setResolution(bottom_water_thermometer, 12);
+}
+
+/**
+ * @brief Setup BME280 sensor to read data periodically
+ *
+ */
+void set_bme280_normal_mode()
+{
+    bme280.setSampling(
+        bme280.MODE_NORMAL,
+        bme280.SAMPLING_X16,
+        bme280.SAMPLING_X16,
+        bme280.SAMPLING_X16,
+        bme280.FILTER_X8,
+        bme280.STANDBY_MS_1000);
 }
 
 /**
