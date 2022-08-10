@@ -45,6 +45,8 @@
 
 // IO pins
 // #define STATUS_LED   2 // Can't use if I2C is enabled
+#define SDA_PIN      0
+#define SCL_PIN      2
 #define ONE_WIRE_BUS 1
 #define LIGHT_PIN    3
 

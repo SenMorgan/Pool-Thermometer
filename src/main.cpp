@@ -248,7 +248,7 @@ void setup()
                        { digitalWrite(LIGHT_PIN, LOW); });
 
     // I2C stuff
-    Wire.begin(0, 2);
+    Wire.begin(SDA_PIN, SCL_PIN);
     init_sensors();
 
     uint8_t cnt = 0;
