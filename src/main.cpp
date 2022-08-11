@@ -31,6 +31,16 @@ static uint32_t time_stamp_sleep, time_stamp_publish, disconnected_time_stamp;
 
 // Force declaration of static functions
 void set_bme280_normal_mode();
+void asleep_sensors();
+
+void go_sleep(uint8_t publish_flag, uint32_t delay_before_sleep)
+{
+    asleep_sensors();
+    if (publish_flag)
+        mqttClient.publish(MQTT_STATE_TOPIC_SLEEP, MQTT_CMD_ON, true);
+    delay(delay_before_sleep);
+    ESP.deepSleep(SLEEP_STEP_MS * 1000);
+}
 
 /**
  * @brief MQTT Callback
@@ -46,15 +56,19 @@ void callback(String topic, byte *payload, uint16_t length)
     {
         if (msgString == MQTT_CMD_ON && !light_enabled)
         {
+            digitalWrite(LIGHT_PIN, HIGH);
+            mqttClient.publish(MQTT_STATE_TOPIC_LIGHT, MQTT_CMD_ON, true);
             light_enabled = 1;
-            // Disable sleep mode if we want to control the light
-            mqttClient.publish(MQTT_STATE_TOPIC_SLEEP, MQTT_CMD_OFF, true);
+            // Disable sleep mode to keep GPIOs active
             sleep_enabled = 0;
+            mqttClient.publish(MQTT_STATE_TOPIC_SLEEP, MQTT_CMD_OFF, true);
             // Switch BME280 to normal mode, because now we don't care about consumption
             set_bme280_normal_mode();
         }
         else if (msgString == MQTT_CMD_OFF && light_enabled)
         {
+            digitalWrite(LIGHT_PIN, LOW);
+            mqttClient.publish(MQTT_STATE_TOPIC_LIGHT, MQTT_CMD_OFF, true);
             light_enabled = 0;
         }
     }
@@ -66,9 +80,7 @@ void callback(String topic, byte *payload, uint16_t length)
             // Go to sleep only if light is not enabled
             if (!light_enabled)
             {
-                sleep_enabled = 1;
-                mqttClient.publish(MQTT_STATE_TOPIC_SLEEP, MQTT_CMD_ON, true);
-                delay(DELAY_AFTER_PUBLISH_MS);
+                go_sleep(1, DELAY_AFTER_PUBLISH_MS);
             }
             // Send back info that sleep mode state was not changed
             else
@@ -80,6 +92,8 @@ void callback(String topic, byte *payload, uint16_t length)
         {
             sleep_enabled = 0;
             mqttClient.publish(MQTT_STATE_TOPIC_SLEEP, MQTT_CMD_OFF, true);
+            // Switch BME280 to normal mode, because now we don't care about consumption
+            set_bme280_normal_mode();
         }
     }
 }
@@ -209,44 +223,19 @@ void read_send_sensors_data()
     }
 }
 
-void light_control(int vcc, int cutoff_voltage, uint8_t state)
+void low_battery_control(int vcc, int cutoff_voltage)
 {
-    static uint8_t state_last;
-
-    // Turn ON/OFF light depending on VCC voltage
-    if (state != state_last)
+    if (vcc < cutoff_voltage)
     {
-        state_last = state;
-        if (state)
-        {
-            if (vcc > cutoff_voltage)
-            {
-                digitalWrite(LIGHT_PIN, HIGH);
-                light_enabled = 1;
-                mqttClient.publish(MQTT_STATE_TOPIC_LIGHT, MQTT_CMD_ON, true);
-            }
-            else
-            {
-                light_enabled = 0;
-                mqttClient.publish(MQTT_STATE_TOPIC_LIGHT, MQTT_CMD_OFF, true);
-            }
-        }
-        else
+        if (light_enabled)
         {
             light_enabled = 0;
             digitalWrite(LIGHT_PIN, LOW);
             mqttClient.publish(MQTT_STATE_TOPIC_LIGHT, MQTT_CMD_OFF, true);
         }
-    }
-
-    // If VCC is below cutoff voltage, turn off light
-    if (light_enabled)
-    {
-        if (vcc < cutoff_voltage)
+        if (!sleep_enabled)
         {
-            light_enabled = 0;
-            digitalWrite(LIGHT_PIN, LOW);
-            mqttClient.publish(MQTT_STATE_TOPIC_LIGHT, MQTT_CMD_OFF, true);
+            go_sleep(1, DELAY_AFTER_PUBLISH_MS);
         }
     }
 }
@@ -278,7 +267,7 @@ void setup()
         cnt++;
         // Fall asleep if can't connect to the WiFi network
         if (cnt > 50)
-            ESP.deepSleep(SLEEP_STEP_MS * 1000);
+            go_sleep(0, 0);
     }
 
     mqttClient.setServer(MQTT_SERVER, MQTT_SERVER_PORT);
@@ -297,9 +286,7 @@ void setup()
     // Fall asleep if can't connect to the broker
     else
     {
-        asleep_sensors();
-        delay(200);
-        ESP.deepSleep(SLEEP_STEP_MS * 1000);
+        go_sleep(0, 200);
     }
 
     time_stamp_sleep = millis();
@@ -309,25 +296,32 @@ void loop()
 {
     ArduinoOTA.handle();
     uint8_t connected_to_broker = mqttClient.loop();
-    light_control(vcc_mv, LIGHT_CUTOFF_MV, light_enabled);
+    low_battery_control(vcc_mv, LIGHT_CUTOFF_MV);
 
     // If sleep mode enabled, wait for retained messages from broker
     if (sleep_enabled)
     {
         if (millis() - time_stamp_sleep > SLEEP_AFTER_MS)
         {
-            asleep_sensors();
-            delay(200);
-            ESP.deepSleep(SLEEP_STEP_MS * 1000);
+            go_sleep(0, 200);
         }
     }
     else
     {
         // If sleep disabled and connected to the broker, read sensors data and publish it
-        if (!sleep_enabled && connected_to_broker && millis() - time_stamp_publish > PUBLISH_INTERVAL_MS)
+        if (millis() - time_stamp_publish > PUBLISH_INTERVAL_MS)
         {
             time_stamp_publish = millis();
-            read_send_sensors_data();
+
+            if (connected_to_broker)
+            {
+                read_send_sensors_data();
+            }
+            // Read battery Voltage even if we are not connected to the broker
+            else
+            {
+                vcc_mv = read_filter_vcc();
+            }
         }
 
         // Save timestamp when loose connection to the broker
@@ -339,9 +333,7 @@ void loop()
         // Fall asleep after some time if can't connect to the broker
         if (disconnected_time_stamp && millis() - disconnected_time_stamp > SLEEP_AFTER_DISCONNECT_MS)
         {
-            asleep_sensors();
-            delay(200);
-            ESP.deepSleep(SLEEP_STEP_MS * 1000);
+            go_sleep(0, 200);
         }
     }
 

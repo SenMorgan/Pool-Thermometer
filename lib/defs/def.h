@@ -30,8 +30,8 @@
 #define SLEEP_STEP_MS             60000
 // Some delay to process MQTT messages before going to sleep
 #define SLEEP_AFTER_MS            2000
-// Time to wait before going to sleep if can't connect to the broker
-#define SLEEP_AFTER_DISCONNECT_MS 60000
+// Time to wait before going to sleep if we loose connection to the broker
+#define SLEEP_AFTER_DISCONNECT_MS 120000
 // Interval between sensor readings and publish in non-sleep mode
 #define PUBLISH_INTERVAL_MS       10000
 // Some delay to process MQTT messages before going to sleep
