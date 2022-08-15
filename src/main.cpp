@@ -232,6 +232,9 @@ void low_battery_control(int vcc, int cutoff_voltage)
             light_enabled = 0;
             digitalWrite(LIGHT_PIN, LOW);
             mqttClient.publish(MQTT_STATE_TOPIC_LIGHT, MQTT_CMD_OFF, true);
+            // Change old retained messages to prevent disabling sleep mode
+            mqttClient.publish(MQTT_CMD_TOPIC_LIGHT, MQTT_CMD_OFF, true);
+            mqttClient.publish(MQTT_CMD_TOPIC_SLEEP, MQTT_CMD_ON, true);
         }
         if (!sleep_enabled)
         {
